@@ -1,0 +1,3 @@
+fetch:
+  task_and_robot_environment_name: 'FetchPush-v0'
+  ros_ws_abspath: "/home/edluffy/tiago_public_ws"

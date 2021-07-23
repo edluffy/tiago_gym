@@ -18,4 +18,7 @@
   <build_depend>actionlib_msgs</build_depend>
   <exec_depend>actionlib_msgs</exec_depend>
 
+  <build_depend>openai_ros</build_depend>
+  <exec_depend>openai_ros</exec_depend>
+
 </package>

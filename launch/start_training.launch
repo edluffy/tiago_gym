@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <!-- This version uses the openai_ros environments -->
+    <rosparam command="load" file="$(find rl_tiago)/config/tiago_train_params.yaml" />
+    <!-- Launch the training system -->
+    <node pkg="rl_tiago" name="tiago_train" type="train.py" output="screen"/>
+</launch>
+
