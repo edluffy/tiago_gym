@@ -12,11 +12,10 @@ import tiago_move_task
 
 if __name__ == '__main__':
     rospy.init_node('tiago_gym')
-    print('got here')
     env = gym.make('TiagoMoveEnv-v0')
     obs = env.reset()
 
-    for _ in range(1000):
+    for _ in range(10):
         action = env.action_space.sample()
         obs, reward, done, _ = env.step(action)
 

@@ -1,10 +1,12 @@
 #! /usr/bin/env python
+import sys
 import rospy
-import actionlib
+import moveit_commander
+import numpy as np
 from openai_ros import robot_gazebo_env
 from openai_ros.openai_ros_common import ROSLauncher
-from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal, JointTrajectoryControllerState
-from trajectory_msgs.msg import JointTrajectoryPoint
+from tf.transformations import quaternion_from_euler
+from geometry_msgs.msg import Pose
 
 class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
     """
@@ -17,35 +19,21 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
         #            launch_file_name="tiago_steel_gazebo.launch",
         #            ros_ws_abspath=ros_ws_abspath)
 
-        # Gotten via 'rosservice call /controller_manager/list_controllers | grep name'
-        self.controllers_list = ['joint_state_controller',
-                                 'imu_sensor_controller',
-                                 'gripper_controller',
-                                 'torso_controller',
-                                 'head_controller',
-                                 'arm_controller',
-                                 'mobile_base_controller']
-        
-        # Does not use namespace, 'rostopic list | grep controller'
+        self.controllers_list = []
         self.robot_name_space = ""
 
         # Whether to reset controllers when a new episode starts
-        reset_controls_bool = True
+        reset_controls_bool = False
         
         # Parent class init
         super(TiagoEnv, self).__init__(controllers_list=self.controllers_list,
                                        robot_name_space=self.robot_name_space,
-                                       reset_controls=reset_controls_bool)
+                                       reset_controls=reset_controls_bool,
+                                       reset_world_or_sim="WORLD")
         
         self.gazebo.unpauseSim()
+        self._init_moveit()
         self._check_all_systems_ready()
-
-        # Subscribe to sensor topics
-        rospy.Subscriber('/arm_controller/state', JointTrajectoryControllerState, self._arm_state_callback)
-        # TODO: add head and gripper sensors
-
-        # Initialize trajectory controller
-        self.controller_object = TiagoController()
 
         self.gazebo.pauseSim()
 
@@ -56,26 +44,50 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
         Checks that all the sensors, publishers and other simulation systems are
         operational.
         """
-        self._check_arm_state_ready()
-        rospy.logdebug("ALL SENSORS READY")
         return True
 
     # TiagoEnv virtual methods
     # ----------------------------
 
-    def _check_arm_state_ready(self):
-        self.arm_state = None
-        rospy.logdebug( "Waiting for /arm_controller/state to be READY...")
-        while self.arm_state is None and not rospy.is_shutdown():
-            try:
-                self.arm_state = rospy.wait_for_message(
-                    "/arm_controller/state", JointTrajectoryControllerState, timeout=5.0)
-                rospy.logdebug("Current /arm_controller/state READY=>")
-            except:
-                rospy.logerr("Current /arm_controller/state not ready yet")
+    def _init_moveit(self):
+        moveit_commander.roscpp_initialize(sys.argv)
+        robot = moveit_commander.RobotCommander()
+        scene = moveit_commander.PlanningSceneInterface()
 
-    def _arm_state_callback(self, msg):
-        self.arm_state = msg
+        # TODO: add other groups: 'head', 'gripper'
+        self.arm_group = moveit_commander.MoveGroupCommander('arm')
+        
+    # Methods that the TrainingEnvironment will need.
+    # ----------------------------
+
+    def get_arm_limits(self):
+        return 
+
+    def get_arm_pose(self):
+        return self.arm_group.get_current_pose().pose
+
+    def send_arm_pose(self, x, y, z, roll, pitch, yaw):
+        #pose = self.arm_group.get_current_pose().pose
+        pose = Pose()
+
+        pose.position.x = x
+        pose.position.y = y
+        pose.position.z = z
+
+        #q = quaternion_from_euler(roll, pitch, yaw)
+        pose.orientation.x = -0.5#q[0]
+        pose.orientation.y = 0.5#q[1]
+        pose.orientation.z = 0.5#q[2]
+        pose.orientation.w = 0.5#q[3]
+
+        self.arm_group.set_pose_target(pose)
+        plan = self.arm_group.go(wait=True)
+        print(pose)
+
+        self.arm_group.stop()
+        self.arm_group.clear_pose_targets()
+
+        return plan
     
     # Methods that the TrainingEnvironment will need to define here as virtual
     # because they will be used in RobotGazeboEnv GrandParentClass and defined in the
@@ -110,51 +122,3 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
         """Checks if episode done based on observations given.
         """
         raise NotImplementedError()
-        
-    # Methods that the TrainingEnvironment will need.
-    # ----------------------------
-
-    def get_joint_limits(self):
-        return self.controller_object.arm_joints_dict.values()
-
-    def get_joint_positions(self):
-        return self.arm_state.actual.positions
-
-    def set_joint_positions(self, positions):
-        assert len(positions) == 7, 'Wrong number of joints given'
-        self.controller_object.send_arm_trajectory([positions])
-
-class TiagoController(object):
-    def __init__(self):
-
-        # TODO: add other clients : '/head_controller', '/gripper_controller'
-
-        # joint_name: [upper_limit, lower_limit]
-        self.arm_joints_dict = {'arm_1_joint': (0, 0),
-                                'arm_2_joint': (0, 0),
-                                'arm_3_joint': (0, 0),
-                                'arm_4_joint': (0, 0),
-                                'arm_5_joint': (0, 0),
-                                'arm_6_joint': (0, 0),
-                                'arm_7_joint': (0, 0)}
-
-        self.arm_client = actionlib.SimpleActionClient('arm_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
-        self.arm_goal = FollowJointTrajectoryGoal()
-        self.arm_goal.trajectory.joint_names = self.arm_joints_dict.keys()
-        self.arm_client.wait_for_server()
-
-    def get_arm_feedback(self, feedback):
-        rospy.loginfo("##### ARM FEEDBACK ######")
-        rospy.loginfo(str(feedback.error.positions))
-        rospy.loginfo("##### ###### ######")
-    
-    def send_arm_trajectory(self, positions_array):
-        self.arm_goal.trajectory.points = [JointTrajectoryPoint() for _ in range(len(positions_array))]
-
-        for point in self.arm_goal.trajectory.points:
-            point.positions = positions_array.pop(0)
-            point.velocities = [0.0 for _ in range(7)]
-            point.time_from_start = rospy.Duration(2.0)
-
-        self.arm_goal.trajectory.header.stamp = rospy.Time.now()
-        self.arm_client.send_goal(self.arm_goal, feedback_cb=self.get_arm_feedback)

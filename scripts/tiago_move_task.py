@@ -11,33 +11,48 @@ register(
         entry_point='tiago_move_task:TiagoMoveEnv',
         max_episode_steps=max_episode_steps,
     )
-
 class TiagoMoveEnv(tiago_env.TiagoEnv):
+    """
+    Observation:
+        Type: Box(3)
+        Num     Observation
+        0       absolute pos of end effector
+        1       relative pos of end effector to goal
+        2       distance between gripper fingers
+
+    Actions:
+        Type: Box(4)
+        Num     Action
+        0       x-pos of end effector
+        1       y-pos of end effector
+        2       z-pos of end effector
+        3       distance between gripper fingers
+
+    Reward:
+
+    """
     def __init__(self):
-        
-        # Only variable needed to be set here
-        #number_actions = rospy.get_param('/my_robot_namespace/n_actions')
-        number_actions = 14
-        self.action_space = spaces.Discrete(number_actions)
-
         super(TiagoMoveEnv, self).__init__()
-        
-        joint_limits = self.get_joint_limits()
-        high = np.array([limit[0] for limit in joint_limits])
-        low  = np.array([limit[1] for limit in joint_limits])
 
-        self.observation_space = spaces.Box(low, high)
-        
-        # Variables that we retrieve through the param server, loded when launch training launch.
-        self.position_delta = 1.0
-        
+        # Observation space
+        high = np.array([0, 0])
+        self.observation_space = spaces.Box(-high, high)
+
+        # Action space
+        low = np.array([0.0, -0.5, 0.7])
+        high = np.array([0.8, 0.5, 0.7])
+        self.action_space = spaces.Box(low, high)
+
+        # Reward
+        self.goal_pos = [0.2, 0.0, -1.5, 1.94, -1.57, -0.5, 0.0]
 
 
     def _set_init_pose(self):
         """Sets the Robot in its init pose
         """
-        self.set_joint_positions([0.2, 0.0, -1.5, 1.94, -1.57, -0.5, 0.0])
-        return True
+        x, y, z = 0.8, 0.0, 0.7
+        roll, pitch, yaw = 0, np.radians(90), np.radians(90)
+        self.send_arm_pose(x, y, z, roll, pitch, yaw)
 
 
     def _init_env_variables(self):
@@ -53,15 +68,12 @@ class TiagoMoveEnv(tiago_env.TiagoEnv):
         """
         Move the robot based on the action variable given
         """
+        if type(action) == np.ndarray:
+            action = action.tolist()
 
-        joint_positions = list(self.get_joint_positions())
-        if action < 7:
-            joint_positions[action] += self.position_delta
-        else:
-            action -= 7
-            joint_positions[action] -= self.position_delta
-
-        self.set_joint_positions(joint_positions)
+        x, y, z = action
+        roll, pitch, yaw = 0, np.radians(90), np.radians(90)
+        self.send_arm_pose(x, y, z, roll, pitch, yaw)
 
     def _get_obs(self):
         """
@@ -70,9 +82,8 @@ class TiagoMoveEnv(tiago_env.TiagoEnv):
         MyRobotEnv API DOCS
         :return: observations
         """
-        joint_positions = self.get_joint_positions()
-        observations = joint_positions
 
+        observations = None
         rospy.logdebug("OBSERVATIONS====>>>>>>>"+str(observations))
 
         return observations
