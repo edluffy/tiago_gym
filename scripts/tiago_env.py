@@ -114,22 +114,33 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
     # Methods that the TrainingEnvironment will need.
     # ----------------------------
 
+    def get_joint_limits(self):
+        return self.controller_object.arm_joints_dict.values()
+
+    def get_joint_positions(self):
+        return self.arm_state.actual.positions
+
+    def set_joint_positions(self, positions):
+        assert len(positions) == 7, 'Wrong number of joints given'
+        self.controller_object.send_arm_trajectory([positions])
+
 class TiagoController(object):
     def __init__(self):
 
         # TODO: add other clients : '/head_controller', '/gripper_controller'
-        self.setup_arm_client()
 
-        self.move_to_init_pose()
+        # joint_name: [upper_limit, lower_limit]
+        self.arm_joints_dict = {'arm_1_joint': (0, 0),
+                                'arm_2_joint': (0, 0),
+                                'arm_3_joint': (0, 0),
+                                'arm_4_joint': (0, 0),
+                                'arm_5_joint': (0, 0),
+                                'arm_6_joint': (0, 0),
+                                'arm_7_joint': (0, 0)}
 
-    def move_to_init_pose(self):
-        self.send_arm_trajectory([[0.2, 0.0, -1.5, 1.94, -1.57, -0.5, 0.0]])
-
-    def setup_arm_client(self):
         self.arm_client = actionlib.SimpleActionClient('arm_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
         self.arm_goal = FollowJointTrajectoryGoal()
-        self.arm_goal.trajectory.joint_names = ['arm_1_joint', 'arm_2_joint', 'arm_3_joint',
-                                                'arm_4_joint', 'arm_5_joint', 'arm_6_joint', 'arm_7_joint']
+        self.arm_goal.trajectory.joint_names = self.arm_joints_dict.keys()
         self.arm_client.wait_for_server()
 
     def get_arm_feedback(self, feedback):
@@ -147,6 +158,3 @@ class TiagoController(object):
 
         self.arm_goal.trajectory.header.stamp = rospy.Time.now()
         self.arm_client.send_goal(self.arm_goal, feedback_cb=self.get_arm_feedback)
-
-rospy.init_node('trajectory_controller')
-test = TiagoEnv()
