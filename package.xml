@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>rl_tiago</name>
+  <name>tiago_gym</name>
   <version>0.0.0</version>
-  <description>The rl_tiago package</description>
+  <description>The tiago_gym package</description>
 
   <maintainer email="edluffy@ncade.com">edluffy</maintainer>
 

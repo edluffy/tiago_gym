@@ -2,7 +2,7 @@
 import rospy
 
 import actionlib
-from rl_tiago.msg import TimerAction, TimerGoal, TimerResult
+from tiago_gym.msg import TimerAction, TimerGoal, TimerResult
 
 rospy.init_node('timer_action_client')
 client = actionlib.SimpleActionClient('timer', TimerAction)

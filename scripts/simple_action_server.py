@@ -3,7 +3,7 @@ import rospy
 
 import time
 import actionlib
-from rl_tiago.msg import TimerAction, TimerGoal, TimerResult
+from tiago_gym.msg import TimerAction, TimerGoal, TimerResult
 
 def do_timer(goal):
     start_time = time.time()
