@@ -7,6 +7,7 @@ from openai_ros import robot_gazebo_env
 from openai_ros.openai_ros_common import ROSLauncher
 from tf.transformations import quaternion_from_euler
 from geometry_msgs.msg import Pose
+from visualization_msgs.msg import Marker
 
 class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
     """
@@ -33,6 +34,7 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
         
         self.gazebo.unpauseSim()
         self._init_moveit()
+        self._init_rviz_marker()
         self._check_all_systems_ready()
 
         self.gazebo.pauseSim()
@@ -56,9 +58,37 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
 
         # TODO: add other groups: 'head', 'gripper'
         self.arm_group = moveit_commander.MoveGroupCommander('arm')
+
+    def _init_rviz_marker(self):
+        self.marker_publisher = rospy.Publisher('visualization_marker', Marker, queue_size=100, latch=True)
+                                                 
         
     # Methods that the TrainingEnvironment will need.
     # ----------------------------
+
+    def update_marker(self, x, y, z, ns):
+        marker = Marker()
+        marker.header.frame_id = '/base_link'
+        marker.type = marker.SPHERE
+        marker.action = marker.ADD
+        marker.ns = ns
+        marker.id = 0
+
+        marker.scale.x = 0.1
+        marker.scale.y = 0.1
+        marker.scale.z = 0.1
+
+        if ns == 'goal':
+            marker.color.g = 1.0
+        elif ns == 'action':
+            marker.color.b = 1.0
+        marker.color.a = 0.5
+
+        marker.pose.position.x = x
+        marker.pose.position.y = y
+        marker.pose.position.z = z - 0.3
+
+        self.marker_publisher.publish(marker)
 
     def get_arm_limits(self):
         return 
@@ -82,7 +112,6 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
 
         self.arm_group.set_pose_target(pose)
         plan = self.arm_group.go(wait=True)
-        print(pose)
 
         self.arm_group.stop()
         self.arm_group.clear_pose_targets()

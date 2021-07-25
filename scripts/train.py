@@ -15,7 +15,7 @@ if __name__ == '__main__':
     env = gym.make('TiagoMoveEnv-v0')
     obs = env.reset()
 
-    for _ in range(10):
+    for _ in range(5):
         action = env.action_space.sample()
         obs, reward, done, _ = env.step(action)
 

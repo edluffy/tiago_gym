@@ -44,7 +44,9 @@ class TiagoMoveEnv(tiago_env.TiagoEnv):
         self.action_space = spaces.Box(low, high)
 
         # Reward
-        self.goal_pos = [0.2, 0.0, -1.5, 1.94, -1.57, -0.5, 0.0]
+
+        self.goal = (0.8, 1.0, 0.7)
+        self.update_marker(self.goal[0], self.goal[1], self.goal[2], ns='goal')
 
 
     def _set_init_pose(self):
@@ -73,6 +75,8 @@ class TiagoMoveEnv(tiago_env.TiagoEnv):
 
         x, y, z = action
         roll, pitch, yaw = 0, np.radians(90), np.radians(90)
+
+        self.update_marker(x, y, z, 'action')
         self.send_arm_pose(x, y, z, roll, pitch, yaw)
 
     def _get_obs(self):

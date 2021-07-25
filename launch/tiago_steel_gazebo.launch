@@ -3,6 +3,7 @@
 <!--Two lines modified from tiago_gazebo.launch to make public_sim:=true and robot:=steel defaults-->
 
 <launch>
+  <arg name="rviz"  default="true"/>
   <arg name="world"  default="empty"/>  <!-- empty, ... (see ../worlds) -->
   <!--deprecated argument, you should specify the parameters below-->
   <!-- They are described in tiago.urdf.xacro -->
@@ -17,7 +18,7 @@
   <arg name="gui" default="true"/>
   <arg name="debug" default="false"/>
   <arg name="public_sim" default="true"/>
-  <arg name="tuck_arm" default="true"/>
+  <arg name="tuck_arm" default="false"/>
   <arg name="recording" default="false"/>
   <arg name="extra_gazebo_args" default=""/>
   <arg name="use_moveit_camera" default="false"/>
@@ -58,6 +59,12 @@
     <arg name="use_moveit_camera" value="$(arg use_moveit_camera)"/>
     <arg name="use_dynamic_footprint" value="$(arg use_dynamic_footprint)"/>
   </include>
+
+
+  <!-- launch rviz -->
+  <group if="$(arg rviz)">
+      <node name="tiago_gym_rviz" pkg="rviz" type="rviz" args="-d $(find tiago_gym)/config/rviz/tiago_gym.rviz" />
+  </group>
 
   <!-- point cloud throttle and filter -->
   <group unless="$(arg public_sim)">
