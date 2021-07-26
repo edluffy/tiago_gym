@@ -45,7 +45,7 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
 
         # Reward
 
-        self.goal = (0.8, 1.0, 0.7)
+        self.goal = (1.0, 0.0, 0.7)
         self.update_marker(self.goal[0], self.goal[1], self.goal[2], ns='goal')
 
 
@@ -86,9 +86,14 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         MyRobotEnv API DOCS
         :return: observations
         """
+        pos = self.get_arm_pose().position
+        ee_xyz = np.array([pos.x, pos.y, pos.z])
+        goal_xyz = np.array(self.goal)
 
-        observations = None
-        rospy.logdebug("OBSERVATIONS====>>>>>>>"+str(observations))
+        abs_pos = np.linalg.norm(ee_xyz)
+        rel_pos = np.linalg.norm(ee_xyz-goal_xyz)
+
+        observations = [abs_pos, rel_pos]
 
         return observations
 
@@ -97,15 +102,19 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         Decide if episode is done based on the observations
         """
         done = False
+        if rospy.is_shutdown():
+            done = True
         return done
 
     def _compute_reward(self, observations, done):
         """
         Return the reward based on the observations given
         """
-        reward = -1.0
-        if done:
-            reward += self.reached_goal_reward
+        if self._is_done(observations):
+            reward = 10
+        else:
+            reward = -1.0
+
         rospy.loginfo(">>>REWARD>>>"+str(reward))
         return reward
         

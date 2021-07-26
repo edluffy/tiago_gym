@@ -8,6 +8,7 @@ from openai_ros.openai_ros_common import ROSLauncher
 from tf.transformations import quaternion_from_euler
 from geometry_msgs.msg import Pose
 from visualization_msgs.msg import Marker
+from sensor_msgs.msg import JointState
 
 class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
     """
@@ -15,10 +16,6 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
     """
     def __init__(self):
         rospy.logdebug("========= In Tiago Env")
-
-        #ROSLauncher(rospackage_name="tiago_gym",
-        #            launch_file_name="tiago_steel_gazebo.launch",
-        #            ros_ws_abspath=ros_ws_abspath)
 
         self.controllers_list = []
         self.robot_name_space = ""
@@ -33,8 +30,10 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
                                        reset_world_or_sim="WORLD")
         
         self.gazebo.unpauseSim()
+
         self._init_moveit()
         self._init_rviz_marker()
+
         self._check_all_systems_ready()
 
         self.gazebo.pauseSim()
@@ -46,7 +45,6 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
         Checks that all the sensors, publishers and other simulation systems are
         operational.
         """
-        return True
 
     # TiagoEnv virtual methods
     # ----------------------------
@@ -61,8 +59,7 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
 
     def _init_rviz_marker(self):
         self.marker_publisher = rospy.Publisher('visualization_marker', Marker, queue_size=100, latch=True)
-                                                 
-        
+
     # Methods that the TrainingEnvironment will need.
     # ----------------------------
 
@@ -90,14 +87,13 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
 
         self.marker_publisher.publish(marker)
 
-    def get_arm_limits(self):
-        return 
-
     def get_arm_pose(self):
-        return self.arm_group.get_current_pose().pose
+        self.gazebo.unpauseSim()
+        pose = self.arm_group.get_current_pose().pose
+        self.gazebo.pauseSim()
+        return pose
 
     def send_arm_pose(self, x, y, z, roll, pitch, yaw):
-        #pose = self.arm_group.get_current_pose().pose
         pose = Pose()
 
         pose.position.x = x

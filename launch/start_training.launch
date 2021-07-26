@@ -1,18 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
-    <!-- launch trainer -->
-    <node pkg="tiago_gym" name="tiago_trainer" type="train.py" output="screen"/>
-    
+    <arg name="train" default="true"/>
+    <arg name="gazebo" default="true"/>
+    <arg name="rviz" default="true"/>
+
     <!-- launch tiago steel gazebo -->
     <include file="$(find tiago_gazebo)/launch/tiago_gazebo.launch">
       <arg name="world" value="empty"/>
       <arg name="robot" value="steel"/>
       <arg name="public_sim" value="true"/>
       <arg name="tuck_arm" value="false"/>
+      <arg name="gui" value="$(arg gazebo)"/>
       <arg name="debug" value="false"/>
+
     </include>
 
     <!-- launch rviz -->
-    <node name="tiago_gym_rviz" pkg="rviz" type="rviz" args="-d $(find tiago_gym)/config/rviz/tiago_gym.rviz" />
+    <group if="$(arg rviz)">
+      <node name="tiago_gym_rviz" pkg="rviz" type="rviz" args="-d $(find tiago_gym)/config/rviz/tiago_gym.rviz" />
+    </group>
+
+    <!-- launch trainer -->
+    <group if="$(arg train)">
+    <node pkg="tiago_gym" name="tiago_trainer" type="train.py" output="screen"/>
+    </group>
+    
 </launch>
 
