@@ -1,8 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
-    <!-- This version uses the openai_ros environments -->
-    <rosparam command="load" file="$(find tiago_gym)/config/tiago_train_params.yaml" />
-    <!-- Launch the training system -->
-    <node pkg="tiago_gym" name="tiago_train" type="train.py" output="screen"/>
+    <!-- launch trainer -->
+    <node pkg="tiago_gym" name="tiago_trainer" type="train.py" output="screen"/>
+    
+    <!-- launch tiago steel gazebo -->
+    <include file="$(find tiago_gazebo)/launch/tiago_gazebo.launch">
+      <arg name="world" value="empty"/>
+      <arg name="robot" value="steel"/>
+      <arg name="public_sim" value="true"/>
+      <arg name="tuck_arm" value="false"/>
+      <arg name="debug" value="false"/>
+    </include>
+
+    <!-- launch rviz -->
+    <node name="tiago_gym_rviz" pkg="rviz" type="rviz" args="-d $(find tiago_gym)/config/rviz/tiago_gym.rviz" />
 </launch>
 
