@@ -8,11 +8,11 @@ import gym
 #a_space = env.action_space.n
 #agent = DQN(input_size=o_space, output_size=a_space)
 
-import tiago_move_task
+import tiago_reach_env
 
 if __name__ == '__main__':
     rospy.init_node('tiago_gym')
-    env = gym.make('TiagoMoveEnv-v0')
+    env = gym.make('TiagoReachEnv-v0')
     obs = env.reset()
 
     for _ in range(5):

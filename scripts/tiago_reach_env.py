@@ -7,11 +7,11 @@ import tiago_env
 max_episode_steps = 1000
 
 register(
-        id='TiagoMoveEnv-v0',
-        entry_point='tiago_move_task:TiagoMoveEnv',
+        id='TiagoReachEnv-v0',
+        entry_point='tiago_reach_env:TiagoReachEnv',
         max_episode_steps=max_episode_steps,
     )
-class TiagoMoveEnv(tiago_env.TiagoEnv):
+class TiagoReachEnv(tiago_env.TiagoEnv):
     """
     Observation:
         Type: Box(3)
@@ -32,7 +32,7 @@ class TiagoMoveEnv(tiago_env.TiagoEnv):
 
     """
     def __init__(self):
-        super(TiagoMoveEnv, self).__init__()
+        super(TiagoReachEnv, self).__init__()
 
         # Observation space
         high = np.array([0, 0])
