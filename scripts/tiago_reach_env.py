@@ -39,15 +39,13 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         self.observation_space = spaces.Box(-high, high)
 
         # Action space
-        low = np.array([0.0, -0.5, 0.7])
-        high = np.array([0.8, 0.5, 0.7])
-        self.action_space = spaces.Box(low, high)
+        #high = np.array([0.1, 0.1, 0.1])
+        #self.action_space = spaces.Box(-high, high)
+        self.action_space = spaces.Discrete(6)
 
         # Reward
-
-        self.goal = (1.0, 0.0, 0.7)
-        self.update_marker(self.goal[0], self.goal[1], self.goal[2], ns='goal')
-
+        self.goal = [0.6, -0.1, 0.7]
+        self.set_marker_points([self.goal], ns='goal')
 
     def _set_init_pose(self):
         """Sets the Robot in its init pose
@@ -56,28 +54,40 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         roll, pitch, yaw = 0, np.radians(90), np.radians(90)
         self.send_arm_pose(x, y, z, roll, pitch, yaw)
 
-
     def _init_env_variables(self):
         """
         Inits variables needed to be initialised each time we reset at the start
         of an episode.
         :return:
         """
-        # TODO
+        self.action_count = 0
 
 
     def _set_action(self, action):
         """
         Move the robot based on the action variable given
         """
-        if type(action) == np.ndarray:
-            action = action.tolist()
+        self.action_count += 1
+        #if type(action) == np.ndarray:
+        #    action = action.tolist()
 
-        x, y, z = action
-        roll, pitch, yaw = 0, np.radians(90), np.radians(90)
+        plan = True
+        if action == 1:
+            plan = self.shift_arm_pose(0.1, 'x')
+        elif action == 2:
+            plan = self.shift_arm_pose(-0.1, 'x')
+        elif action == 3:
+            plan = self.shift_arm_pose(0.1, 'y')
+        elif action == 4:
+            plan = self.shift_arm_pose(-0.1, 'y')
+        elif action == 5:
+            plan = self.shift_arm_pose(0.1, 'z')
+        elif action == 6:
+            plan = self.shift_arm_pose(-0.1, 'z')
 
-        self.update_marker(x, y, z, 'action')
-        self.send_arm_pose(x, y, z, roll, pitch, yaw)
+        #self.set_marker_points([[x, y, z]], ns='action')
+        #self.send_arm_pose(x, y, z, roll, pitch, yaw)
+        self.action_failed = not plan
 
     def _get_obs(self):
         """
@@ -86,36 +96,48 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         MyRobotEnv API DOCS
         :return: observations
         """
-        pos = self.get_arm_pose().position
-        ee_xyz = np.array([pos.x, pos.y, pos.z])
-        goal_xyz = np.array(self.goal)
-
-        abs_pos = np.linalg.norm(ee_xyz)
-        rel_pos = np.linalg.norm(ee_xyz-goal_xyz)
-
-        observations = [abs_pos, rel_pos]
-
+        delta, abs = self.compute_position()
+        observations = [delta, abs]
         return observations
 
     def _is_done(self, observations):
         """
         Decide if episode is done based on the observations
         """
-        done = False
-        if rospy.is_shutdown():
+
+        delta, _ = observations
+        if delta <= 0.05 or self.action_failed or rospy.is_shutdown():
             done = True
+        else:
+            done = False
+
+        print('delta:', delta)
         return done
 
     def _compute_reward(self, observations, done):
         """
         Return the reward based on the observations given
         """
-        if self._is_done(observations):
-            reward = 10
+
+        delta, _ = observations
+        
+        if done and not self.action_failed:
+            reward = 20
         else:
-            reward = -1.0
+            reward = -delta
 
         rospy.loginfo(">>>REWARD>>>"+str(reward))
         return reward
         
     # Internal TaskEnv Methods
+
+    def compute_position(self):
+        x, y, z, _, _, _ = self.get_arm_pose()
+        ee_xyz = np.array([x, y, z])
+        goal_xyz = np.array(self.goal)
+
+        delta = np.linalg.norm(ee_xyz-goal_xyz)
+        abs = np.linalg.norm(ee_xyz)
+
+        return delta, abs
+

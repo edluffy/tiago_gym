@@ -6,8 +6,10 @@ import gym
 
 # Deep Q-Learning with Experience Replay
 class DQN:
-    def __init__(self, input_size, output_size, replay_size=2000, batch_size=32,
-            gamma=0.9, alpha=0.0005, epsilon=1.0, epsilon_decay=0.995, epsilon_min=0.01):
+    def __init__(self, env, input_size, output_size, replay_size=2000, batch_size=32,
+            gamma=0.9, alpha=0.0005, epsilon=1.0, epsilon_decay=0.97, epsilon_min=0.01):
+        self.env = env
+
         # Hyperparams
         self.gamma = gamma
         self.alpha = alpha
@@ -33,33 +35,27 @@ class DQN:
         if random.random() > self.epsilon:
             return np.argmax(self.model.predict(state))
         else:
-            return env.action_space.sample()
+            return self.env.action_space.sample()
         
-    def run(self, env, episodes):
+    def run(self, episodes):
         for ep in range(episodes):
-            state = env.reset()
+            state = self.env.reset()
             state = np.reshape(state, [1, len(state)])
 
             # Run Episode
             done = False
-            t = 0
+            reward_sum = 0
             while not done:
-                if ep > 1000:
-                    env.render()
-                t += 1
-
                 action = self.policy(state)
 
-                next_state, reward, done, _ = env.step(action)
+                next_state, reward, done, _ = self.env.step(action)
                 next_state = np.reshape(next_state, [1, len(next_state)])
-
-                if done:
-                    reward = -10
 
                 self.replay_memory.append((state, action, reward, next_state, done))
 
                 state = next_state
-            print('episode:', ep, 'score:', t, 'e:', self.epsilon)
+                reward_sum += reward
+            print('episode:', ep, 'rewards:', reward_sum, 'e:', self.epsilon)
 
             # Experience Replay
             batch = random.sample(self.replay_memory, min(self.batch_size, len(self.replay_memory)))
@@ -74,11 +70,3 @@ class DQN:
             # Adjust epsilon
             if self.epsilon > self.epsilon_min:
                 self.epsilon *= self.epsilon_decay
-
-#tf.compat.v1.enable_eager_execution()
-#env = gym.make("CartPole-v1")
-
-#o_space = len(env.observation_space.sample())
-#a_space = env.action_space.n
-#agent = DQN(input_size=o_space, output_size=a_space)
-#agent.run(env, 2000)
