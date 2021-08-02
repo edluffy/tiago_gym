@@ -35,22 +35,29 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         super(TiagoReachEnv, self).__init__()
 
         # Observation space
-        high = np.array([0, 0])
-        self.observation_space = spaces.Box(-high, high)
+        self.obs_low = np.array([0.4, -0.5, 0.5])
+        self.obs_high = np.array([0.6, 0.5, 0.7])
+
+        self.observation_space = spaces.Box(self.obs_low, self.obs_high)
 
         # Action space
         #high = np.array([0.1, 0.1, 0.1])
         #self.action_space = spaces.Box(-high, high)
         self.action_space = spaces.Discrete(6)
 
-        # Reward
-        self.goal = [0.6, -0.1, 0.7]
+        # randomize goal
+        x = np.random.uniform(self.obs_low[0], self.obs_high[0])
+        y = np.random.uniform(self.obs_low[1], self.obs_high[1])
+        z = np.random.uniform(self.obs_low[2], self.obs_high[2])
+
+        self.goal = np.round([x, y, z], 1)
         self.set_marker_points([self.goal], ns='goal')
+
 
     def _set_init_pose(self):
         """Sets the Robot in its init pose
         """
-        x, y, z = 0.8, 0.0, 0.7
+        x, y, z = 0.5, 0.0, 0.6
         roll, pitch, yaw = 0, np.radians(90), np.radians(90)
         self.send_arm_pose(x, y, z, roll, pitch, yaw)
 
@@ -62,7 +69,6 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         """
         self.action_count = 0
 
-
     def _set_action(self, action):
         """
         Move the robot based on the action variable given
@@ -70,6 +76,10 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         self.action_count += 1
         #if type(action) == np.ndarray:
         #    action = action.tolist()
+
+        if self.action_count >= 20:
+            self.action_failed = True
+            return
 
         plan = True
         if action == 1:
@@ -96,48 +106,42 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         MyRobotEnv API DOCS
         :return: observations
         """
-        delta, abs = self.compute_position()
-        observations = [delta, abs]
+        x, y, z, _, _, _ = self.get_arm_pose()
+        observations = [x, y, z]
         return observations
 
     def _is_done(self, observations):
         """
         Decide if episode is done based on the observations
         """
+        delta = self.get_goal_delta(observations)
 
-        delta, _ = observations
         if delta <= 0.05 or self.action_failed or rospy.is_shutdown():
             done = True
         else:
             done = False
-
-        print('delta:', delta)
         return done
 
     def _compute_reward(self, observations, done):
         """
         Return the reward based on the observations given
         """
-
-        delta, _ = observations
+        delta = self.get_goal_delta(observations)
         
-        if done and not self.action_failed:
+        if self.action_failed:
+            reward = -10
+        elif done:
             reward = 20
         else:
             reward = -delta
-
-        rospy.loginfo(">>>REWARD>>>"+str(reward))
         return reward
         
     # Internal TaskEnv Methods
 
-    def compute_position(self):
-        x, y, z, _, _, _ = self.get_arm_pose()
-        ee_xyz = np.array([x, y, z])
+    def get_goal_delta(self, obs):
+        ee_xyz = np.array(obs)
         goal_xyz = np.array(self.goal)
 
         delta = np.linalg.norm(ee_xyz-goal_xyz)
-        abs = np.linalg.norm(ee_xyz)
-
-        return delta, abs
+        return delta
 
