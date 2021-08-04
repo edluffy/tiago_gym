@@ -39,9 +39,10 @@ class DQN:
         else:
             return self.env.action_space.sample()
         
-    def run(self, episodes, name):
-        with open('logs/dqn/'+name+'.csv', 'w+') as f:
-            f.write('episode,reward,loss,len,e\n')
+    def run(self, episodes, name=None):
+        if name:
+            with open('logs/dqn/'+name+'.csv', 'w+') as f:
+                f.write('episode,reward,loss,len,e\n')
         for ep in range(episodes):
             episode_loss = 0
             episode_reward = 0
@@ -69,12 +70,13 @@ class DQN:
             print('episode:', ep, 'reward:', episode_reward, 'loss:', episode_loss.numpy(), 'len:', episode_len, 'e:', self.epsilon)
 
             # Logging
-            with open('logs/dqn/'+name+'.csv', 'a') as f:
-                f.write(str(ep)+',')
-                f.write(str(episode_reward)+',')
-                f.write(str(episode_loss.numpy())+',')
-                f.write(str(episode_len)+',')
-                f.write(str(self.epsilon)+'\n')
+            if name:
+                with open('logs/dqn/'+name+'.csv', 'a') as f:
+                    f.write(str(ep)+',')
+                    f.write(str(episode_reward)+',')
+                    f.write(str(episode_loss.numpy())+',')
+                    f.write(str(episode_len)+',')
+                    f.write(str(self.epsilon)+'\n')
 
             # Adjust epsilon
             if self.epsilon > self.epsilon_min:

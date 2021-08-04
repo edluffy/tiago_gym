@@ -106,7 +106,7 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         MyRobotEnv API DOCS
         :return: observations
         """
-        x, y, z, _, _, _ = self.get_arm_pose()
+        x, y, z, _, _, _ = self.stored_arm_pose
         observations = [x, y, z]
         return observations
 

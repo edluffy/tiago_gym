@@ -92,6 +92,7 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
         plan = self.arm_group.go(wait=True)
         self.arm_group.stop()
         self.arm_group.clear_pose_targets()
+        self.store_arm_pose()
         return plan
     
     def shift_arm_pose(self, delta, dim):
@@ -101,19 +102,18 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
         plan = self.arm_group.go(wait=True)
         self.arm_group.stop()
         self.arm_group.clear_pose_targets()
+        self.store_arm_pose()
         return plan
 
-    def get_arm_pose(self):
-        self.gazebo.unpauseSim()
+    # Method must be called when sim is unpaused!
+    def store_arm_pose(self):
         pose = self.arm_group.get_current_pose().pose
         x = pose.position.x
         y = pose.position.y
         z = pose.position.z
-
         roll, pitch, yaw = self.arm_group.get_current_rpy()
-        self.gazebo.pauseSim()
 
-        return x, y, z, roll, pitch, yaw
+        self.stored_arm_pose = [x, y, z, roll, pitch, yaw]
     
     # Methods that the TrainingEnvironment will need to define here as virtual
     # because they will be used in RobotGazeboEnv GrandParentClass and defined in the
