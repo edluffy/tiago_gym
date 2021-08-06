@@ -12,8 +12,13 @@
       <arg name="tuck_arm" value="false"/>
       <arg name="gui" value="$(arg gazebo)"/>
       <arg name="debug" value="false"/>
-
     </include>
+
+    <!-- send table urdf to param server -->
+    <param name="table_description" command="$(find xacro)/xacro.py $(find tiago_gym)/objects/table.urdf" />
+
+    <!-- push table_description to factory and spawn robot in gazebo -->
+    <node name="spawn_table" pkg="gazebo_ros" type="spawn_model" args="-urdf -param table_description -z 0.01 -model table" respawn="false" output="screen" />
 
     <!-- launch rviz -->
     <group if="$(arg rviz)">

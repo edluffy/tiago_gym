@@ -9,13 +9,13 @@ from tensorflow.keras import layers
 tf.compat.v1.enable_eager_execution()
 
 class DDPG():
-    def __init__(self, env, state_dim, action_dim, action_bound, replay_size=50000, batch_size=64,
+    def __init__(self, env, state_dim, action_dim, action_bounds, replay_size=50000, batch_size=64,
             gamma=0.99, actor_alpha=0.001, critic_alpha=0.002, tau=0.005):
 
         self.env = env
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.action_bound = action_bound
+        self.action_bounds = action_bounds
         self.replay_size = replay_size
         self.batch_size = batch_size
 
@@ -47,7 +47,7 @@ class DDPG():
     def policy(self, state):
         action = self.actor_model(np.vstack(state))
         action = action.numpy() + self.noise()
-        action = np.clip(action, -self.action_bound, self.action_bound)
+        action = np.clip(action, -self.action_bounds, self.action_bounds)
         action = np.squeeze(action)
         return action
 
@@ -122,8 +122,8 @@ class DDPG():
         x = layers.Dense(self.action_dim, activation='tanh',
                 kernel_initializer=tf.random_uniform_initializer(-0.003, 0.003))(x)
 
-        # must scale action_out between -action_bound and action_bound
-        action_out = tf.multiply(x, self.action_bound)
+        # must scale action_out between -action_bounds and action_bounds
+        action_out = tf.multiply(x, self.action_bounds)
 
         return tf.keras.Model(inputs=state_in, outputs=action_out)
 

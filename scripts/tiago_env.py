@@ -6,7 +6,7 @@ import numpy as np
 from openai_ros import robot_gazebo_env
 from openai_ros.openai_ros_common import ROSLauncher
 from tf.transformations import quaternion_from_euler
-from geometry_msgs.msg import Pose, Point
+from geometry_msgs.msg import PoseStamped, Point
 from visualization_msgs.msg import Marker
 from sensor_msgs.msg import JointState
 
@@ -31,7 +31,7 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
         
         self.gazebo.unpauseSim()
         self._init_moveit()
-        self._init_rviz_marker()
+        self._init_rviz()
         self._check_all_systems_ready()
 
         self.gazebo.pauseSim()
@@ -54,9 +54,21 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
 
         # TODO: add other groups: 'head', 'gripper'
         self.arm_group = moveit_commander.MoveGroupCommander('arm')
-        self.arm_pose = self.arm_group.get_current_pose().pose
+        self.arm_group.set_planning_time(0.1)
 
-    def _init_rviz_marker(self):
+        self.arm_workspace_low =  np.array([0.35, -0.25, 0.65])
+        self.arm_workspace_high = np.array([0.75,  0.25, 0.75])
+
+        rospy.sleep(2)
+        p = PoseStamped()
+        p.header.frame_id = robot.get_planning_frame()
+        p.pose.position.x = 0.8
+        p.pose.position.y = 0
+        p.pose.position.z = 0.2
+
+        scene.add_box('table', p, (1, 1, 0.4))
+
+    def _init_rviz(self):
         self.marker_publisher = rospy.Publisher('visualization_marker', Marker, queue_size=100, latch=True)
 
     # Methods that the TrainingEnvironment will need.
@@ -114,7 +126,10 @@ class TiagoEnv(robot_gazebo_env.RobotGazeboEnv):
         roll, pitch, yaw = self.arm_group.get_current_rpy()
 
         self.stored_arm_pose = [x, y, z, roll, pitch, yaw]
-    
+
+    def arm_pose_reachable(self, x, y, z):
+        return (([x, y, z] >= self.arm_workspace_low) & ([x, y, z] <= self.arm_workspace_high)).all()
+
     # Methods that the TrainingEnvironment will need to define here as virtual
     # because they will be used in RobotGazeboEnv GrandParentClass and defined in the
     # TrainingEnvironment.

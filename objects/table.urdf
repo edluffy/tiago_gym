@@ -1,0 +1,27 @@
+<robot name="table">
+  <link name="box">
+    <inertial>
+      <origin xyz="0.8 0 0" />
+      <mass value="100.0" />
+      <inertia  ixx="1.0" ixy="0.0"  ixz="0.0"  iyy="100.0"  iyz="0.0"  izz="1.0" />
+    </inertial>
+    <visual>
+      <origin xyz="0.8 0 0.2"/>
+      <geometry>
+        <box size="1 1 0.4"/>
+      </geometry>
+      <material name="dark_grey">
+        <color rgba="0.2 0.2 0.2 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.8 0 0.2"/>
+      <geometry>
+        <box size="1 1 0.4"/>
+      </geometry>
+    </collision>
+  </link>
+  <gazebo reference="box">
+    <material>Gazebo/DarkGrey</material>
+  </gazebo>
+</robot>
