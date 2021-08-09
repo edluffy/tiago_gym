@@ -51,13 +51,18 @@ class DDPG():
         action = np.squeeze(action)
         return action
 
-    def run(self, episodes):
+    def run(self, episodes, name=None):
+        if name:
+            with open('logs/ddpg/'+name+'.csv', 'w+') as f:
+                f.write('episode,reward,loss\n')
+
+        episode_rewards = [0]*episodes
+
         for ep in range(episodes):
             prev_state = self.env.reset()
             prev_state = np.reshape(prev_state, [1, len(prev_state)])
 
             done = False
-            episode_rewards = 0
             episode_critic_loss = 0
             episode_actor_loss = 0
             while not done:
@@ -71,12 +76,20 @@ class DDPG():
                 self.update_target(self.actor_target_model.variables, self.actor_model.variables)
                 self.update_target(self.critic_target_model.variables, self.critic_model.variables)
 
-                episode_rewards += reward
+                episode_rewards[ep] += reward
                 episode_critic_loss += critic_loss
                 episode_actor_loss += actor_loss
 
                 prev_state = state
-            #print('ep:', ep, 'reward:', episode_rewards[0], episode_critic_loss.numpy(), episode_actor_loss.numpy())
+            
+            # Logging
+            if name:
+                with open('logs/ddpg/'+name+'.csv', 'a') as f:
+                    f.write(str(ep)+',')
+                    f.write(str(episode_rewards[ep])+',')
+                    f.write(str(critic_loss.numpy())+'\n')
+
+            print('ep:', ep, 'ave reward:', np.mean(episode_rewards[ep-40:ep]), episode_critic_loss.numpy(), episode_actor_loss.numpy())
 
     def replay(self):
         batch = random.sample(self.replay_memory, min(self.batch_size, len(self.replay_memory)))

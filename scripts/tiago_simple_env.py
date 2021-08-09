@@ -35,8 +35,8 @@ class TiagoSimpleEnv(tiago_env.TiagoEnv):
         super(TiagoSimpleEnv, self).__init__()
 
         # Observation space
-        self.obs_low = np.array([0.4, -0.5, 0.5])
-        self.obs_high = np.array([0.6, 0.5, 0.7])
+        self.obs_low = np.array([0.4, -0.25, 0.65])
+        self.obs_high = np.array([0.7, 0.25, 0.75])
 
         self.observation_space = spaces.Box(self.obs_low, self.obs_high)
 
@@ -45,21 +45,34 @@ class TiagoSimpleEnv(tiago_env.TiagoEnv):
         #self.action_space = spaces.Box(-high, high)
         self.action_space = spaces.Discrete(6)
 
+        self.obs_points = {'x': [], 'y': [], 'z':[]}
+        for x in np.arange(self.obs_low[0], self.obs_high[0]+0.1, 0.1):
+            for y in np.arange(self.obs_low[1], self.obs_high[1]+0.1, 0.1):
+                for z in np.arange(self.obs_low[2], self.obs_high[2]+0.1, 0.1):
+                    self.obs_points['x'].append(x)
+                    self.obs_points['y'].append(y)
+                    self.obs_points['z'].append(z)
+        self.visualize_points(self.obs_points['x'], self.obs_points['y'], self.obs_points['z'], ns='obs')
+
         # randomize goal
         x = np.random.uniform(self.obs_low[0], self.obs_high[0])
         y = np.random.uniform(self.obs_low[1], self.obs_high[1])
         z = np.random.uniform(self.obs_low[2], self.obs_high[2])
 
-        self.goal = np.round([x, y, z], 1)
-        self.set_marker_points([self.goal], ns='goal')
+        x = self.obs_points['x'][np.abs(np.asarray(self.obs_points['x'])-x).argmin()]
+        y = self.obs_points['y'][np.abs(np.asarray(self.obs_points['y'])-y).argmin()]
+        z = self.obs_points['z'][np.abs(np.asarray(self.obs_points['z'])-z).argmin()]
 
+        self.goal = [x, y, z]
 
     def _set_init_pose(self):
         """Sets the Robot in its init pose
         """
-        x, y, z = 0.5, 0.0, 0.6
+        self.visualize_points(*self.goal, ns='goal')
+        x, y, z = 0.5, 0.15, 0.65
         roll, pitch, yaw = 0, np.radians(90), np.radians(90)
-        self.send_arm_pose(x, y, z, roll, pitch, yaw)
+        self.set_gripper_joints(0.001, 0.001)
+        self.set_arm_pose(x, y, z, roll, pitch, yaw)
 
     def _init_env_variables(self):
         """
@@ -74,30 +87,31 @@ class TiagoSimpleEnv(tiago_env.TiagoEnv):
         Move the robot based on the action variable given
         """
         self.action_count += 1
-        #if type(action) == np.ndarray:
-        #    action = action.tolist()
 
-        if self.action_count >= 20:
-            self.action_failed = True
-            return
+        x, y, z, _, _, _ = self.stored_arm_state
 
         plan = True
         if action == 1:
-            plan = self.shift_arm_pose(0.1, 'x')
+            x += 0.1
         elif action == 2:
-            plan = self.shift_arm_pose(-0.1, 'x')
+            x -= 0.1
         elif action == 3:
-            plan = self.shift_arm_pose(0.1, 'y')
+            y += 0.1
         elif action == 4:
-            plan = self.shift_arm_pose(-0.1, 'y')
+            y -= 0.1
         elif action == 5:
-            plan = self.shift_arm_pose(0.1, 'z')
+            z += 0.1
         elif action == 6:
-            plan = self.shift_arm_pose(-0.1, 'z')
+            z -= 0.1
+        roll, pitch, yaw = 0, np.radians(90), np.radians(90)
 
-        #self.set_marker_points([[x, y, z]], ns='action')
-        #self.send_arm_pose(x, y, z, roll, pitch, yaw)
-        self.action_failed = not plan
+        x = self.obs_points['x'][np.abs(np.asarray(self.obs_points['x'])-x).argmin()]
+        y = self.obs_points['y'][np.abs(np.asarray(self.obs_points['y'])-y).argmin()]
+        z = self.obs_points['z'][np.abs(np.asarray(self.obs_points['z'])-z).argmin()]
+
+        self.visualize_points(x, y, z, ns='action')
+        self.action_failed = not self.set_arm_pose(x, y, z, roll, pitch, yaw)
+
 
     def _get_obs(self):
         """
@@ -106,7 +120,7 @@ class TiagoSimpleEnv(tiago_env.TiagoEnv):
         MyRobotEnv API DOCS
         :return: observations
         """
-        x, y, z, _, _, _ = self.stored_arm_pose
+        x, y, z, _, _, _ = self.stored_arm_state
         observations = [x, y, z]
         return observations
 
@@ -114,9 +128,7 @@ class TiagoSimpleEnv(tiago_env.TiagoEnv):
         """
         Decide if episode is done based on the observations
         """
-        delta = self.get_goal_delta(observations)
-
-        if delta <= 0.05 or self.action_failed or rospy.is_shutdown():
+        if self.action_count >= 50 or rospy.is_shutdown():
             done = True
         else:
             done = False
@@ -126,22 +138,23 @@ class TiagoSimpleEnv(tiago_env.TiagoEnv):
         """
         Return the reward based on the observations given
         """
-        delta = self.get_goal_delta(observations)
+        _, rel, = self.calculate_distances()
         
-        if self.action_failed:
-            reward = -10
-        elif done:
-            reward = 20
+        if rel <= 0.05:
+            reward = 10
         else:
-            reward = -delta
+            reward = -rel
+
         return reward
         
     # Internal TaskEnv Methods
 
-    def get_goal_delta(self, obs):
-        ee_xyz = np.array(obs)
+    def calculate_distances(self):
+        ee_xyz = np.array(self.stored_arm_state[:3])
         goal_xyz = np.array(self.goal)
 
-        delta = np.linalg.norm(ee_xyz-goal_xyz)
-        return delta
+        abs = np.linalg.norm(ee_xyz)
+        rel = np.linalg.norm(ee_xyz-goal_xyz)
+        return abs, rel
+
 

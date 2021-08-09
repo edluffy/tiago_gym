@@ -28,9 +28,9 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         2       z-pos of gripper
         3       desired distance between gripper fingers
 
-    Rewards (Sparse!):
-        Goal not reached yet: -1
-        Goal reached: 20
+    Rewards (Dense!):
+        Goal reached: 0
+        Goal not reached yet: -relative distance
 
     Done:
         When episode length > 50
@@ -51,10 +51,9 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
 
         # randomize goal
         x, y, z = np.random.uniform(self.arm_workspace_low, self.arm_workspace_high)
-        self.goal = np.round([x, y, z], 1)
-        self.set_marker_points([self.goal], ns='goal')
+        self.goal = [x, y, z]
+        self.visualize_points(x, y, z, ns='goal')
 
-        self.past_positions = []
         # 0.35, -0.25, 0.65
         # 0.75, -0.25, 0.65
         # 0.75, -0.25, 0.75
@@ -64,8 +63,8 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         """
         x, y, z = 0.5, 0.0, 0.7
         roll, pitch, yaw = 0, np.radians(90), np.radians(90)
-        self.send_arm_pose(x, y, z, roll, pitch, yaw)
-
+        self.set_gripper_joints(0.001, 0.001)
+        self.set_arm_pose(x, y, z, roll, pitch, yaw)
 
     def _init_env_variables(self):
         """
@@ -84,20 +83,15 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
             action = action.tolist()
 
         dx, dy, dz, _ = action
-        print(dx, dy, dz)
-        x = self.stored_arm_pose[0] + dx*0.05
-        y = self.stored_arm_pose[1] + dy*0.05
-        z = self.stored_arm_pose[2] + dz*0.05
+        x, y, z, _, _, _ = self.stored_arm_state
+
+        dx = dx*0.1
+        dy = dy*0.1
+        dz = dz*0.1
         roll, pitch, yaw = 0, np.radians(90), np.radians(90)
 
-        if self.arm_pose_reachable(x, y, z):
-            plan = self.send_arm_pose(x, y, z, roll, pitch, yaw)
-        else:
-            self.past_positions.append([x, y, z])
-            self.set_marker_points(self.past_positions, ns='action')
-            plan = False
-
-        self.action_failed = not plan
+        self.visualize_action(x, y, z, x+dx, y+dy, z+dz, self.arm_pose_reachable(x+dx, y+dy, z+dz))
+        self.action_failed = not self.set_arm_pose(x+dx, y+dy, z+dz, roll, pitch, yaw)
 
     def _get_obs(self):
         """
@@ -114,9 +108,7 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         """
         Decide if episode is done based on the observations
         """
-        _, rel, _ = observations
-
-        if rel <= 0.05 or self.action_count >= 50 or rospy.is_shutdown():
+        if self.action_count >= 50 or rospy.is_shutdown():
             done = True
         else:
             done = False
@@ -129,17 +121,15 @@ class TiagoReachEnv(tiago_env.TiagoEnv):
         """
         _, rel, _ = observations
 
-        if done and rel <= 0.05:
-            reward = 20
-        elif self.action_failed:
-            reward = -5
+        if rel <= 0.05:
+            reward = 10
         else:
             reward = -rel
 
         return reward
 
     def calculate_distances(self):
-        ee_xyz = np.array(self.stored_arm_pose[:3])
+        ee_xyz = np.array(self.stored_arm_state[:3])
         goal_xyz = np.array(self.goal)
 
         abs = np.linalg.norm(ee_xyz)

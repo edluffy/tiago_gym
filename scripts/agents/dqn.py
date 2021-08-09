@@ -27,7 +27,7 @@ class DQN:
         x = tf.keras.layers.Dense(self.output_size, activation='linear')(x)
         self.model = tf.keras.Model(inputs=x_in, outputs=x, name='DQN')
         self.optimizer = tf.keras.optimizers.Adam(self.alpha)
-        self.model.summary()
+        #self.model.summary()
 
         # Replay Memory [(s0, a0, r1, s1, done), (s1, a1, r2, s2, done)...]
         self.replay_memory = deque(maxlen=replay_size)
