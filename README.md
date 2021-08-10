@@ -1,7 +1,9 @@
 # 🦾 tiago_gym
 A ROS package to run Reinforcement Learning experiments, particularly pick and place tasks, on the TIAGo robot. Uses Gazebo, Rviz and MoveIt! (for motion planning)
 
-![rviz-showcase](https://user-images.githubusercontent.com/28115337/128855778-1333fb2a-a6ac-47d0-8d59-ccc5798a2c32.gif)
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/28115337/128855778-1333fb2a-a6ac-47d0-8d59-ccc5798a2c32.gif" alt="rviz-showcase" />
+</p>
 
 ## Installation
 Tested on Ubuntu 18.04 only. Beware! Instructions assume familiarity with the ROS [packages](http://wiki.ros.org/Packages) system.
